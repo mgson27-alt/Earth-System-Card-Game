@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지구계 탐험가 - 지구계 구성 요소 카드 게임</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas Library for Result Image Capture -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800;900&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        geosphere: { DEFAULT: '#d97706', light: '#fef3c7', dark: '#92400e' },
+                        hydrosphere: { DEFAULT: '#0284c7', light: '#e0f2fe', dark: '#075985' },
+                        atmosphere: { DEFAULT: '#0d9488', light: '#ccfbf1', dark: '#115e59' },
+                        biosphere: { DEFAULT: '#16a34a', light: '#dcfce7', dark: '#166534' },
+                        exosphere: { DEFAULT: '#9333ea', light: '#f3e8ff', dark: '#6b21a8' },
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.5s ease-in-out 1',
+                        'shake': 'shake 0.4s ease-in-out',
+                    },
+                    keyframes: {
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '20%': { transform: 'translateX(-8px)' },
+                            '40%': { transform: 'translateX(8px)' },
+                            '60%': { transform: 'translateX(-4px)' },
+                            '80%': { transform: 'translateX(4px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-perspective {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-style: preserve-3d;
+        }
+        .sphere-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sphere-btn:active {
+            transform: scale(0.95);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-3 sm:p-6 overflow-x-hidden font-sans relative">
+
+    <!-- Background and Particle FX Canvas -->
+    <canvas id="bgCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+    <canvas id="fxCanvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <div class="w-full max-w-2xl z-10 flex flex-col my-auto space-y-4">
+        
+        <!-- Header Controls & Sound Toggle -->
+        <header class="flex justify-between items-center glass-panel px-4 py-3 rounded-2xl shadow-xl">
+            <div class="flex items-center space-x-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center font-black text-xl shadow-lg">
+                    🌍
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base sm:text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400">
+                        지구계 구성요소 카드
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">지권 · 수권 · 기권 · 생물권 · 외권</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button id="bookBtn" onclick="openCodex()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all text-xs flex items-center space-x-1 border border-slate-700">
+                    <span>📚</span>
+                    <span class="hidden sm:inline">도감</span>
+                </button>
+                <button id="soundToggle" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all text-xs flex items-center space-x-1 border border-slate-700">
+                    <span id="soundIcon">🔊</span>
+                </button>
+            </div>
+        </header>
+
+        <main id="startScreen" class="glass-panel p-6 sm:p-8 rounded-3xl text-center shadow-2xl space-y-6 relative overflow-hidden">
+            <div class="space-y-3">
+                <div class="inline-block p-4 bg-blue-500/10 rounded-full border border-blue-500/20 mb-2">
+                    <span class="text-5xl animate-bounce">🌍</span>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">지구계 탐험 카드 퀴즈</h2>
+                <p class="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                    제시된 단어를 보고 어느 지구계 구성요소에 속하는지 빠르게 맞혀보세요! 최고 점수와 콤보 기록에 도전해보세요.
+                </p>
+            </div>
+
+            <!-- Rules Card -->
+            <div class="bg-slate-900/80 rounded-2xl p-4 text-left border border-slate-800 text-xs sm:text-sm space-y-2.5">
+                <div class="font-bold text-teal-400 flex items-center space-x-2 border-b border-slate-800 pb-2">
+                    <span>🎮</span> <span>게임 규칙 안내</span>
+                </div>
+                <ul class="space-y-1.5 text-slate-300">
+                    <li class="flex items-start"><span class="text-amber-400 mr-2">✦</span><span><strong>생명 3개:</strong> 틀리거나 시간 초과 시 생명이 1개 감소합니다.</span></li>
+                    <li class="flex items-start"><span class="text-amber-400 mr-2">✦</span><span><strong>제한 시간 10초:</strong> 문제당 10초 안에 선택하세요.</span></li>
+                    <li class="flex items-start"><span class="text-amber-400 mr-2">✦</span><span><strong>스피드 & 콤보 보너스:</strong> 빨라질수록, 연속으로 맞힐수록 점수 폭발!</span></li>
+                    <li class="flex items-start"><span class="text-amber-400 mr-2">✦</span><span><strong>힌트 찬스:</strong> 힌트를 볼 때마다 <span class="text-red-400 font-bold">-3점</span>이 감점됩니다.</span></li>
+                </ul>
+            </div>
+
+            <!-- Student Info Input Form -->
+            <div class="bg-slate-900/80 rounded-2xl p-4 text-left border border-slate-800 space-y-3">
+                <div class="font-bold text-blue-400 flex items-center space-x-2 border-b border-slate-800 pb-2 text-xs sm:text-sm">
+                    <span>👤</span> <span>탐험가 정보 입력</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                    <div>
+                        <label for="inputStudentId" class="block text-slate-400 font-semibold mb-1">학번 <span class="text-red-400">*</span></label>
+                        <input type="text" id="inputStudentId" placeholder="예: 10101" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 transition-all font-medium">
+                    </div>
+                    <div>
+                        <label for="inputStudentName" class="block text-slate-400 font-semibold mb-1">이름 <span class="text-red-400">*</span></label>
+                        <input type="text" id="inputStudentName" placeholder="예: 홍길동" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 transition-all font-medium">
+                    </div>
+                </div>
+            </div>
+
+            <!-- High Score Badge -->
+            <div id="startHighScore" class="text-xs font-semibold text-slate-400 flex justify-center items-center space-x-2 bg-slate-800/50 py-2 rounded-xl border border-slate-800">
+                <span>🏆 최고 기록: <span id="topScoreValue" class="text-amber-400 font-extrabold text-sm">0</span>점</span>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-blue-600 via-teal-500 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-extrabold text-lg rounded-2xl shadow-lg shadow-teal-500/20 active:scale-98 transition-all flex items-center justify-center space-x-2">
+                <span>🚀 게임 시작하기</span>
+            </button>
+        </main>
+
+        <main id="gameScreen" class="hidden space-y-4">
+            
+            <!-- Stats Dashboard (Lives, Score, Combo, Timer Bar) -->
+            <div class="glass-panel p-4 rounded-2xl shadow-xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <!-- Lives -->
+                    <div class="flex items-center space-x-1" id="livesContainer">
+                        <span class="text-xl">❤️</span>
+                        <span class="text-xl">❤️</span>
+                        <span class="text-xl">❤️</span>
+                    </div>
+
+                    <!-- Combo Badge -->
+                    <div id="comboBadge" class="hidden px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full flex items-center space-x-1 animate-pulse">
+                        <span class="text-xs font-bold text-amber-300">🔥 COMBO</span>
+                        <span id="comboCount" class="font-black text-amber-400 text-sm">x0</span>
+                    </div>
+
+                    <!-- Score -->
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block font-semibold">SCORE</span>
+                        <span id="currentScore" class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">0</span>
+                    </div>
+                </div>
+
+                <!-- Timer Bar -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-bold text-slate-400">
+                        <span class="flex items-center space-x-1">⏱️ <span>제한시간</span></span>
+                        <span id="timerText" class="text-teal-300">10.0초</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                        <div id="timerBar" class="h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full transition-all duration-100 ease-linear w-full"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Display -->
+            <div class="card-perspective w-full">
+                <div id="cardInner" class="card-inner glass-panel p-8 sm:p-10 rounded-3xl shadow-2xl text-center space-y-4 relative border border-slate-700/60">
+                    
+                    <div class="flex justify-between items-center text-xs text-slate-400 font-semibold border-b border-slate-800 pb-3">
+                        <span id="questionNum" class="bg-slate-800 px-3 py-1 rounded-full text-slate-300">STAGE 1 / 40</span>
+                        <span id="hintTag" class="text-amber-400 hidden">💡 힌트 사용됨 (-3점)</span>
+                    </div>
+
+                    <div id="cardContent" class="py-6 space-y-2">
+                        <span class="text-xs font-extrabold uppercase tracking-widest text-slate-500 block">이 단어의 영역은?</span>
+                        <h2 id="targetWord" class="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                            화강암
+                        </h2>
+                    </div>
+
+                    <!-- Hint Box -->
+                    <div id="hintBox" class="hidden bg-slate-900/90 p-3.5 rounded-xl border border-amber-500/30 text-xs sm:text-sm text-amber-200 text-left">
+                        <span class="font-bold text-amber-400 block mb-1">💡 힌트:</span>
+                        <p id="hintText">힌트 내용이 보여집니다.</p>
+                    </div>
+
+                    <!-- Hint Button -->
+                    <div class="flex justify-end pt-2">
+                        <button id="hintBtn" onclick="useHint()" class="px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center space-x-1.5 transition-all">
+                            <span>💡 힌트 보기</span>
+                            <span class="text-amber-400 font-bold">(-3점)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sphere Buttons -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                <button onclick="checkAnswer('지권')" class="sphere-btn p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-amber-600/30 border border-amber-500/40 hover:border-amber-400 flex flex-col items-center justify-center space-y-1 shadow-lg group">
+                    <span class="text-2xl group-hover:scale-110 transition-transform">🪨</span>
+                    <span class="font-black text-amber-400 text-sm">지권</span>
+                    <span class="text-[10px] text-slate-400">지각·맨틀·암석</span>
+                </button>
+
+                <button onclick="checkAnswer('수권')" class="sphere-btn p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-sky-600/30 border border-sky-500/40 hover:border-sky-400 flex flex-col items-center justify-center space-y-1 shadow-lg group">
+                    <span class="text-2xl group-hover:scale-110 transition-transform">💧</span>
+                    <span class="font-black text-sky-400 text-sm">수권</span>
+                    <span class="text-[10px] text-slate-400">바다·강·빙하</span>
+                </button>
+
+                <button onclick="checkAnswer('기권')" class="sphere-btn p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-teal-600/30 border border-teal-500/40 hover:border-teal-400 flex flex-col items-center justify-center space-y-1 shadow-lg group">
+                    <span class="text-2xl group-hover:scale-110 transition-transform">🌬️</span>
+                    <span class="font-black text-teal-400 text-sm">기권</span>
+                    <span class="text-[10px] text-slate-400">공기·대기·구름</span>
+                </button>
+
+                <button onclick="checkAnswer('생물권')" class="sphere-btn p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-emerald-600/30 border border-emerald-500/40 hover:border-emerald-400 flex flex-col items-center justify-center space-y-1 shadow-lg group">
+                    <span class="text-2xl group-hover:scale-110 transition-transform">🌿</span>
+                    <span class="font-black text-emerald-400 text-sm">생물권</span>
+                    <span class="text-[10px] text-slate-400">식물·동물·세균</span>
+                </button>
+
+                <button onclick="checkAnswer('외권')" class="sphere-btn col-span-2 sm:col-span-1 p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-purple-600/30 border border-purple-500/40 hover:border-purple-400 flex flex-col items-center justify-center space-y-1 shadow-lg group">
+                    <span class="text-2xl group-hover:scale-110 transition-transform">🚀</span>
+                    <span class="font-black text-purple-400 text-sm">외권</span>
+                    <span class="text-[10px] text-slate-400">태양·달·우주</span>
+                </button>
+            </div>
+        </main>
+
+        <main id="resultScreen" class="hidden glass-panel p-6 sm:p-8 rounded-3xl text-center shadow-2xl space-y-6">
+            <div class="space-y-2">
+                <div id="resultIcon" class="text-6xl animate-bounce">🏆</div>
+                <h2 id="resultTitle" class="text-2xl sm:text-3xl font-black text-white">탐험 완료!</h2>
+                
+                <!-- Student Info Display Badge -->
+                <div id="resultStudentBadge" class="inline-flex items-center space-x-2 px-4 py-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full text-blue-300 font-bold text-sm my-1">
+                    <span>🎓</span>
+                    <span id="displayStudentInfo">10101 홍길동</span>
+                </div>
+
+                <!-- Date & Time Stamp -->
+                <div id="resultDate" class="text-[11px] text-slate-400 font-medium"></div>
+
+                <p id="resultSubtitle" class="text-slate-300 text-xs sm:text-sm">지구계 구성요소를 훌륭하게 탐험하셨습니다!</p>
+            </div>
+
+            <!-- Score Summary Cards -->
+            <div class="grid grid-cols-2 gap-3 text-left">
+                <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                    <span class="text-xs text-slate-400 block font-semibold">최종 점수</span>
+                    <span id="finalScore" class="text-2xl font-black text-amber-400">0</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                    <span class="text-xs text-slate-400 block font-semibold">최대 콤보</span>
+                    <span id="maxComboText" class="text-2xl font-black text-teal-400">0</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                    <span class="text-xs text-slate-400 block font-semibold">정답률</span>
+                    <span id="accuracyText" class="text-2xl font-black text-emerald-400">0%</span>
+                </div>
+                <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                    <span class="text-xs text-slate-400 block font-semibold">맞힌 문제</span>
+                    <span id="correctCountText" class="text-2xl font-black text-blue-400">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- Wrong Answer Review List -->
+            <div id="reviewContainer" class="hidden space-y-2 text-left">
+                <div class="font-bold text-xs text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>❌ 틀린 문제 복습하기</span>
+                    <span id="reviewCount" class="text-red-400">0개</span>
+                </div>
+                <div id="reviewList" class="max-h-40 overflow-y-auto space-y-2 pr-1">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-2 space-y-2">
+                <button onclick="downloadResultImage()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-2xl shadow-lg active:scale-98 transition-all flex items-center justify-center space-x-2 text-sm sm:text-base">
+                    <span>📸</span> <span>결과 화면 이미지 다운로드</span>
+                </button>
+                <button onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 via-teal-500 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-black rounded-2xl shadow-lg active:scale-98 transition-all">
+                    🔄 다시 도전하기
+                </button>
+                <button onclick="openCodex()" class="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl border border-slate-700 transition-all text-sm">
+                    📚 지구계 정리표 족보 확인하기
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <div id="codexModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-2xl max-h-[90vh] rounded-3xl p-6 flex flex-col space-y-4 shadow-2xl border border-slate-700">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">📚</span>
+                    <h3 class="text-lg font-black text-white">지구계 구성요소 완벽 정리표</h3>
+                </div>
+                <button onclick="closeCodex()" class="text-slate-400 hover:text-white p-1 rounded-lg text-xl font-bold">✕</button>
+            </div>
+
+            <div class="overflow-y-auto flex-1 space-y-4 pr-1 text-sm">
+                <!-- Geosphere -->
+                <div class="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 space-y-2">
+                    <div class="font-extrabold text-amber-400 flex items-center space-x-2 text-base">
+                        <span>🪨</span> <span>지권 (Geosphere)</span>
+                    </div>
+                    <p class="text-xs text-amber-200/80">지구 표면과 지구 내부의 단단한 암석 및 토양 영역</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">화강암</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">현무암</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">맨틀</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">지각</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">흙(토양)</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">광물(석영)</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">용암</span>
+                        <span class="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg text-xs font-semibold">지진</span>
+                    </div>
+                </div>
+
+                <!-- Hydrosphere -->
+                <div class="bg-sky-950/30 border border-sky-500/30 rounded-2xl p-4 space-y-2">
+                    <div class="font-extrabold text-sky-400 flex items-center space-x-2 text-base">
+                        <span>💧</span> <span>수권 (Hydrosphere)</span>
+                    </div>
+                    <p class="text-xs text-sky-200/80">지구상에 있는 바다, 육지의 물 및 빙하 등 모든 물 영역</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">바다</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">강</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">호수</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">빙하</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">지하수</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">해류</span>
+                        <span class="px-2.5 py-1 bg-sky-500/20 text-sky-300 rounded-lg text-xs font-semibold">폭포</span>
+                    </div>
+                </div>
+
+                <!-- Atmosphere -->
+                <div class="bg-teal-950/30 border border-teal-500/30 rounded-2xl p-4 space-y-2">
+                    <div class="font-extrabold text-teal-400 flex items-center space-x-2 text-base">
+                        <span>🌬️</span> <span>기권 (Atmosphere)</span>
+                    </div>
+                    <p class="text-xs text-teal-200/80">지구를 둘러싸고 있는 대기층과 기체 영역</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">질소</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">산소</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">이산화탄소</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">오존층</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">바람</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">대기압</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">성층권</span>
+                        <span class="px-2.5 py-1 bg-teal-500/20 text-teal-300 rounded-lg text-xs font-semibold">구름</span>
+                    </div>
+                </div>
+
+                <!-- Biosphere -->
+                <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
+                    <div class="font-extrabold text-emerald-400 flex items-center space-x-2 text-base">
+                        <span>🌿</span> <span>생물권 (Biosphere)</span>
+                    </div>
+                    <p class="text-xs text-emerald-200/80">지구에 살고 있는 미생물 포함 모든 생명체 영역</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">나무</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">물고기</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">산호</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">세균</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">곰팡이</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">버섯</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">해조류</span>
+                        <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-semibold">플랑크톤</span>
+                    </div>
+                </div>
+
+                <!-- Exosphere -->
+                <div class="bg-purple-950/30 border border-purple-500/30 rounded-2xl p-4 space-y-2">
+                    <div class="font-extrabold text-purple-400 flex items-center space-x-2 text-base">
+                        <span>🚀</span> <span>외권 (Exosphere)</span>
+                    </div>
+                    <p class="text-xs text-purple-200/80">지구 대기권 바깥의 우주 공간 및 태양/천체 영역</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">태양</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">달</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">별</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">소행성</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">혜성</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">운석</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">태양풍</span>
+                        <span class="px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-lg text-xs font-semibold">자외선</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="closeCodex()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700">
+                닫기
+            </button>
+        </div>
+    </div>
+
+    <footer class="text-center text-xs text-slate-500 py-2 z-10">
+        지구계 구성 요소 학습 카드 게임 ⓒ 2026
+    </footer>
+
+    <script>
+        const EARTH_DATA = [
+            // 지권 (Geosphere)
+            { word: '화강암', sphere: '지권', hint: '마그마가 지하 깊은 곳에서 천천히 식어 만들어진 심성암이에요.' },
+            { word: '현무암', sphere: '지권', hint: '화산 분출 시 용암이 지표면에서 급격히 식어 생성된 화산암이에요.' },
+            { word: '맨틀', sphere: '지권', hint: '지각 아래부터 깊이 약 2,900km까지의 지구 내부층이에요.' },
+            { word: '지각', sphere: '지권', hint: '우리가 발을 딛고 서 있는 지구의 가장 겉면 암석층이에요.' },
+            { word: '흙(토양)', sphere: '지권', hint: '암석이 오랫동안 풍화되어 생성된 생물의 터전이에요.' },
+            { word: '광물(석영)', sphere: '지권', hint: '암석을 구성하는 알갱이로, 유리나 반도체의 원료가 돼요.' },
+            { word: '용암', sphere: '지권', hint: '마그마가 지표 밖으로 분출하여 흐르는 뜨거운 암석 용융물이에요.' },
+            { word: '지진', sphere: '지권', hint: '지구 내부 에너지 발산으로 땅이 흔들리는 현상이에요.' },
+
+            // 수권 (Hydrosphere)
+            { word: '바다', sphere: '수권', hint: '지구 표면의 약 70%를 덮고 있으며 수권의 대부분을 차지해요.' },
+            { word: '강', sphere: '수권', hint: '육지 위를 흐르는 담수의 줄기로 해양으로 흘러들어가요.' },
+            { word: '호수', sphere: '수권', hint: '육지의 오목한 곳에 물이 고여 있는 넓은 수역이에요.' },
+            { word: '빙하', sphere: '수권', hint: '눈이 쌓여 굳어진 거대한 얼음 덩어리로 담수의 큰 비중을 차지해요.' },
+            { word: '지하수', sphere: '수권', hint: '땅속 흙이나 암석 사이의 빈공간에 채워져 있는 물이에요.' },
+            { word: '해류', sphere: '수권', hint: '바다 속에서 일정한 방향으로 흐르는 큰 바닷물의 흐름이에요.' },
+            { word: '폭포', sphere: '수권', hint: '하천의 높은 곳에서 낮은 곳으로 떨어지는 수직적인 물길이에요.' },
+
+            // 기권 (Atmosphere)
+            { word: '질소', sphere: '기권', hint: '지구 대기 성분의 약 78%를 차지하는 가장 많은 기체예요.' },
+            { word: '산소', sphere: '기권', hint: '지구 대기의 약 21%를 차지하며 생물 호흡에 필수적이에요.' },
+            { word: '이산화탄소', sphere: '기권', hint: '지구 온실효과에 영향을 주며 식물 광합성에 쓰여요.' },
+            { word: '오존층', sphere: '기권', hint: '성층권에 존재하여 태양의 유해한 자외선을 차단해줘요.' },
+            { word: '바람', sphere: '기권', hint: '기압 차이에 의해 공기가 높은 곳에서 낮은 곳으로 이동해요.' },
+            { word: '대기압', sphere: '기권', hint: '공기의 무게 때문에 생기는 대기의 압력이에요.' },
+            { word: '성층권', sphere: '기권', hint: '대류권 위 약 10~50km 사이에 위치하며 오존층이 있어요.' },
+            { word: '구름', sphere: '기권', hint: '수증기가 공기 중에서 응결하여 작은 물방울이나 빙정이 된 것이에요.' },
+
+            // 생물권 (Biosphere)
+            { word: '나무', sphere: '생물권', hint: '엽록소를 통해 광합성을 하고 대기 중 산소를 만들어내요.' },
+            { word: '물고기', sphere: '생물권', hint: '수중 환경에서 지느러미와 굴곡 운동으로 헤엄쳐요.' },
+            { word: '산호', sphere: '생물권', hint: '바다 속에서 군체를 이루며 수많은 해양 생물의 서식지가 돼요.' },
+            { word: '세균', sphere: '생물권', hint: '단세포 미생물로 분해자 역할을 하며 물질 순환에 기여해요.' },
+            { word: '곰팡이', sphere: '생물권', hint: '유기물을 분해하여 흡수하는 진균류 생물이에요.' },
+            { word: '버섯', sphere: '생물권', hint: '숲 속 유기물을 분해하고 포자로 번식하는 균류예요.' },
+            { word: '해조류', sphere: '생물권', hint: '미역, 다시마처럼 바다에서 광합성을 하는 생물이에요.' },
+            { word: '플랑크톤', sphere: '생물권', hint: '수중 환경에서 물결을 따라 떠다니는 미세한 생물이에요.' },
+
+            // 외권 (Exosphere)
+            { word: '태양', sphere: '외권', hint: '지구계 전체에 에너지를 공급하는 대표적인 항성이에요.' },
+            { word: '달', sphere: '외권', hint: '지구 주변을 돌며 조석 현상에 큰 영향을 주는 위성이에요.' },
+            { word: '별', sphere: '외권', hint: '지구 대기권 밖 우주 공간에서 스스로 빛을 내는 천체예요.' },
+            { word: '소행성', sphere: '외권', hint: '태양 주변을 돌고 있는 암석질의 작은 천체예요.' },
+            { word: '혜성', sphere: '외권', hint: '얼음과 먼지로 이루어져 태양에 접근할 때 꼬리를 끌어요.' },
+            { word: '운석', sphere: '외권', hint: '우주 공간의 암석이 지구 대기를 뚫고 지표면에 떨어진 덩어리에요.' },
+            { word: '태양풍', sphere: '외권', hint: '태양에서 방출되는 양성자와 전자 등 플라스마의 흐름이에요.' },
+            { word: '자외선', sphere: '외권', hint: '태양에서 오는 전자기파 중 오존층에 의해 대부분 차단돼요.' }
+        ];
+
+        let audioCtx = null;
+        let soundEnabled = true;
+        let studentId = '';
+        let studentName = '';
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'correct') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now); // A3
+                    osc.frequency.linearRampToValueAtTime(130, now + 0.25);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'hint') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'combo') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'over') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.linearRampToValueAtTime(100, now + 0.6);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+                    osc.start(now);
+                    osc.stop(now + 0.65);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').innerText = soundEnabled ? '🔊' : '🔇';
+        }
+
+        let gameQuestions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let lives = 3;
+        let combo = 0;
+        let maxCombo = 0;
+        let correctCount = 0;
+        let wrongAnswers = [];
+        let timerInterval = null;
+        let timeLeft = 10.0;
+        let isHintUsedCurrent = false;
+
+        let highScore = parseInt(localStorage.getItem('earth_game_highscore') || '0');
+        document.getElementById('topScoreValue').innerText = highScore;
+
+        function updateLivesUI() {
+            const container = document.getElementById('livesContainer');
+            if (!container) return;
+            let html = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    html += '<span class="text-xl">❤️</span>';
+                } else {
+                    html += '<span class="text-xl opacity-20">🖤</span>';
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function updateScoreUI() {
+            document.getElementById('currentScore').innerText = score;
+            const comboBadge = document.getElementById('comboBadge');
+            if (combo >= 2) {
+                comboBadge.classList.remove('hidden');
+                document.getElementById('comboCount').innerText = `x${combo}`;
+            } else {
+                comboBadge.classList.add('hidden');
+            }
+        }
+
+        function startGame() {
+            const idInput = document.getElementById('inputStudentId').value.trim();
+            const nameInput = document.getElementById('inputStudentName').value.trim();
+
+            if (!idInput || !nameInput) {
+                showToast('학번과 이름을 모두 입력해 주세요!', 'error');
+                return;
+            }
+
+            studentId = idInput;
+            studentName = nameInput;
+
+            initAudio();
+            gameQuestions = [...EARTH_DATA].sort(() => Math.random() - 0.5);
+            currentIndex = 0;
+            score = 0;
+            lives = 3;
+            combo = 0;
+            maxCombo = 0;
+            correctCount = 0;
+            wrongAnswers = [];
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+
+            updateLivesUI();
+            updateScoreUI();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentIndex >= gameQuestions.length || lives <= 0) {
+                endGame();
+                return;
+            }
+
+            const q = gameQuestions[currentIndex];
+            isHintUsedCurrent = false;
+
+            document.getElementById('questionNum').innerText = `STAGE ${currentIndex + 1} / ${gameQuestions.length}`;
+            document.getElementById('targetWord').innerText = q.word;
+            
+            document.getElementById('hintBox').classList.add('hidden');
+            document.getElementById('hintTag').classList.add('hidden');
+            document.getElementById('hintText').innerText = q.hint;
+            document.getElementById('hintBtn').disabled = false;
+            document.getElementById('hintBtn').classList.remove('opacity-50');
+
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 10.0;
+            updateTimerDisplay();
+
+            const startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                timeLeft = Math.max(0, 10.0 - elapsed);
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 50);
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timerText').innerText = `${timeLeft.toFixed(1)}초`;
+            const bar = document.getElementById('timerBar');
+            const pct = (timeLeft / 10.0) * 100;
+            bar.style.width = `${pct}%`;
+
+            if (timeLeft > 5) {
+                bar.className = 'h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full transition-all duration-100 ease-linear';
+            } else if (timeLeft > 2.5) {
+                bar.className = 'h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full transition-all duration-100 ease-linear';
+            } else {
+                bar.className = 'h-full bg-gradient-to-r from-red-500 to-pink-600 rounded-full transition-all duration-100 ease-linear animate-pulse';
+            }
+        }
+
+        function useHint() {
+            if (isHintUsedCurrent) return;
+            playSound('hint');
+            isHintUsedCurrent = true;
+
+            score = Math.max(0, score - 3);
+            updateScoreUI();
+
+            document.getElementById('hintBox').classList.remove('hidden');
+            document.getElementById('hintTag').classList.remove('hidden');
+            document.getElementById('hintBtn').disabled = true;
+            document.getElementById('hintBtn').classList.add('opacity-50');
+        }
+
+        function checkAnswer(selectedSphere) {
+            clearInterval(timerInterval);
+            const q = gameQuestions[currentIndex];
+
+            if (selectedSphere === q.sphere) {
+                combo++;
+                if (combo > maxCombo) maxCombo = combo;
+                correctCount++;
+
+                const baseScore = 10;
+                const speedBonus = Math.floor(timeLeft * 1.5);
+                const comboBonus = (combo - 1) * 3;
+                const totalEarned = baseScore + speedBonus + comboBonus;
+
+                score += totalEarned;
+                playSound(combo >= 3 ? 'combo' : 'correct');
+                spawnParticles(true);
+
+                showToast(`정답! +${totalEarned}점 (스피드 +${speedBonus}, 콤보 +${comboBonus})`, 'success');
+            } else {
+                combo = 0;
+                lives--;
+                playSound('wrong');
+                wrongAnswers.push({
+                    word: q.word,
+                    correct: q.sphere,
+                    selected: selectedSphere
+                });
+
+                const cardInner = document.getElementById('cardInner');
+                cardInner.classList.add('animate-shake');
+                setTimeout(() => cardInner.classList.remove('animate-shake'), 400);
+
+                showToast(`오답! 정답은 [${q.sphere}]입니다.`, 'error');
+            }
+
+            updateLivesUI();
+            updateScoreUI();
+
+            currentIndex++;
+            setTimeout(() => {
+                loadQuestion();
+            }, 600);
+        }
+
+        function handleTimeout() {
+            const q = gameQuestions[currentIndex];
+            combo = 0;
+            lives--;
+            playSound('wrong');
+            wrongAnswers.push({
+                word: q.word,
+                correct: q.sphere,
+                selected: '시간 초과'
+            });
+
+            const cardInner = document.getElementById('cardInner');
+            cardInner.classList.add('animate-shake');
+            setTimeout(() => cardInner.classList.remove('animate-shake'), 400);
+
+            showToast(`시간 초과! 정답은 [${q.sphere}]입니다.`, 'error');
+
+            updateLivesUI();
+            updateScoreUI();
+
+            currentIndex++;
+            setTimeout(() => {
+                loadQuestion();
+            }, 600);
+        }
+
+        function showToast(msg, type) {
+            const existing = document.getElementById('gameToast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'gameToast';
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-2xl text-xs font-black shadow-2xl z-50 transition-all border ${
+                type === 'success' 
+                    ? 'bg-emerald-600/90 text-white border-emerald-400' 
+                    : 'bg-red-600/90 text-white border-red-400'
+            }`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast) toast.remove();
+            }, 1200);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+
+            document.getElementById('displayStudentInfo').innerText = `${studentId} ${studentName}`;
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${now.getHours()}시 ${now.getMinutes()}분`;
+            document.getElementById('resultDate').innerText = `🗓️ 탐험 일시: ${dateStr}`;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('earth_game_highscore', highScore.toString());
+                document.getElementById('topScoreValue').innerText = highScore;
+            }
+
+            const totalAttempted = currentIndex;
+            const accuracy = totalAttempted > 0 ? Math.round((correctCount / totalAttempted) * 100) : 0;
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('maxComboText').innerText = `x${maxCombo}`;
+            document.getElementById('accuracyText').innerText = `${accuracy}%`;
+            document.getElementById('correctCountText').innerText = `${correctCount} / ${totalAttempted}`;
+
+            if (lives <= 0) {
+                playSound('over');
+                document.getElementById('resultIcon').innerText = '💥';
+                document.getElementById('resultTitle').innerText = '게임 오버';
+                document.getElementById('resultSubtitle').innerText = '생명을 모두 소모했습니다. 다시 도전해보세요!';
+            } else {
+                playSound('correct');
+                spawnParticles(true);
+                document.getElementById('resultIcon').innerText = '🎉';
+                document.getElementById('resultTitle').innerText = '탐험 완수!';
+                document.getElementById('resultSubtitle').innerText = '모든 지구계 카드 탐험을 성공적으로 마쳤습니다!';
+            }
+
+            const reviewContainer = document.getElementById('reviewContainer');
+            const reviewList = document.getElementById('reviewList');
+            reviewList.innerHTML = '';
+
+            if (wrongAnswers.length > 0) {
+                reviewContainer.classList.remove('hidden');
+                document.getElementById('reviewCount').innerText = `${wrongAnswers.length}개`;
+
+                wrongAnswers.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 text-xs flex justify-between items-center';
+                    row.innerHTML = `
+                        <span class="font-extrabold text-white">${item.word}</span>
+                        <div class="space-x-2">
+                            <span class="text-red-400 line-through">선택: ${item.selected}</span>
+                            <span class="text-emerald-400 font-bold">정답: ${item.correct}</span>
+                        </div>
+                    `;
+                    reviewList.appendChild(row);
+                });
+            } else {
+                reviewContainer.classList.add('hidden');
+            }
+        }
+
+        function openCodex() {
+            document.getElementById('codexModal').classList.remove('hidden');
+        }
+
+        function closeCodex() {
+            document.getElementById('codexModal').classList.add('hidden');
+        }
+
+        function downloadResultImage() {
+            const resultElem = document.getElementById('resultScreen');
+            if (!resultElem) return;
+
+            showToast('📸 이미지 생성 중...', 'success');
+
+            if (typeof html2canvas === 'undefined') {
+                showToast('❌ 이미지 생성 라이브러리를 불러오지 못했습니다.', 'error');
+                return;
+            }
+
+            html2canvas(resultElem, {
+                backgroundColor: '#0f172a',
+                scale: 2,
+                useCORS: true,
+                logging: false
+            }).then(canvas => {
+                const link = document.createElement('a');
+                const cleanId = studentId.replace(/[^a-zA-Z0-9가-힣]/g, '');
+                const cleanName = studentName.replace(/[^a-zA-Z0-9가-힣]/g, '');
+                const filename = `지구계탐험_성적표_${cleanId}_${cleanName}.png`;
+                
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast('✅ 결과 이미지가 다운로드 되었습니다!', 'success');
+            }).catch(err => {
+                console.error(err);
+                showToast('❌ 이미지 저장 중 오류가 발생했습니다.', 'error');
+            });
+        }
+
+        const fxCanvas = document.getElementById('fxCanvas');
+        const fxCtx = fxCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            fxCanvas.width = window.innerWidth;
+            fxCanvas.height = window.innerHeight;
+            
+            const bgCanvas = document.getElementById('bgCanvas');
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            drawBackgroundStars();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function spawnParticles(isVictory) {
+            const count = isVictory ? 40 : 15;
+            const colors = ['#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ec4899'];
+            
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.8) * 12,
+                    size: Math.random() * 6 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    life: Math.random() * 30 + 30
+                });
+            }
+        }
+
+        function renderParticles() {
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.alpha -= 1 / p.life;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                fxCtx.save();
+                fxCtx.globalAlpha = Math.max(0, p.alpha);
+                fxCtx.fillStyle = p.color;
+                fxCtx.beginPath();
+                fxCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                fxCtx.fill();
+                fxCtx.restore();
+            }
+            requestAnimationFrame(renderParticles);
+        }
+
+        function drawBackgroundStars() {
+            const bgCanvas = document.getElementById('bgCanvas');
+            const ctx = bgCanvas.getContext('2d');
+            ctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 70; i++) {
+                const x = Math.random() * bgCanvas.width;
+                const y = Math.random() * bgCanvas.height;
+                const r = Math.random() * 1.5;
+                const alpha = Math.random() * 0.5 + 0.2;
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        window.onload = function() {
+            resizeCanvas();
+            renderParticles();
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('gameScreen').classList.contains('hidden')) return;
+            if (e.key === '1') checkAnswer('지권');
+            if (e.key === '2') checkAnswer('수권');
+            if (e.key === '3') checkAnswer('기권');
+            if (e.key === '4') checkAnswer('생물권');
+            if (e.key === '5') checkAnswer('외권');
+            if (e.key === 'h' || e.key === 'H') useHint();
+        });
+    </script>
+</body>
+</html>
